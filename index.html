@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Srpski Arheološki Lokaliteti - Interaktivna Mapa</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-search@3.0.2/dist/leaflet-search.src.css" />
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { height: 100vh; width: 100vw; }
+        .leaflet-popup-content { width: 200px; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+    <script src="https://unpkg.com/leaflet-search@3.0.2/dist/leaflet-search.src.js"></script>
+    <script>
+        // Inicijalizacija mape
+        var map = L.map('map').setView([44.0, 21.0], 7); // Centar Srbije
+
+        // Dodaj OpenStreetMap tiles (besplatno)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Custom ikona za markere (zameni URL sa tvojim ikonama, npr. upload na GitHub u folder /icons/archaeology-icon.png)
+        var archaeologyIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png', // Placeholder - zameni sa custom arheološkom ikonom (npr. sa Flaticon.com)
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+        // Lista 8 srpskih arheoloških lokaliteta sa koordinatama i opisima
+        var sites = [
+            { name: 'Lepenski Vir', lat: 44.5833, lng: 22.4167, desc: 'Praistorijsko naselje iz 7. milenijuma p.n.e.' },
+            { name: 'Vinča', lat: 44.7167, lng: 20.5833, desc: 'Neolitska kultura (5400–4500 p.n.e.).' },
+            { name: 'Starčevo', lat: 44.0333, lng: 21.3167, desc: 'Neolitsko naselje, početak Starčevačke kulture.' },
+            { name: 'Viminacium', lat: 44.5167, lng: 21.3833, desc: 'Rimski grad i legija (1.–6. vek).' }, // Ispravljena long (bila greška u prethodnom)
+            { name: 'Felix Romuliana (Gamzigrad)', lat: 43.9167, lng: 22.1667, desc: 'Rimska palata cara Galerija, UNESCO.' },
+            { name: 'Mediana', lat: 43.3167, lng: 21.9000, desc: 'Rimsko naselje sa vilama i mozaicima.' },
+            { name: 'Caričin Grad', lat: 43.0000, lng: 21.5000, desc: 'Vizantijski grad iz 6. veka.' },
+            { name: 'Ras (Stari Ras)', lat: 43.1333, lng: 20.4167, desc: 'Srednjovekovni grad, prva srpska prestonica, UNESCO.' } // Ispravljena long
+        ];
+
+        // Layer group za markere (za search)
+        var markersLayer = L.layerGroup().addTo(map);
+
+        // Dodaj markere
+        sites.forEach(function(site) {
+            var marker = L.marker([site.lat, site.lng], { icon: archaeologyIcon })
+                .addTo(markersLayer)
+                .bindPopup('<b>' + site.name + '</b><br>' + site.desc);
+            
+            // Klik na marker: Pokreni rutu od trenutne lokacije do markera
+            marker.on('click', function(e) {
+                getUserLocation(function(userLatLng) {
+                    if (routingControl) {
+                        routingControl.setWaypoints([userLatLng, L.latLng(site.lat, site.lng)]);
+                    }
+                });
+            });
+        });
+
+        // Dodaj search control
+        var searchControl = new L.Control.Search({
+            layer: markersLayer,
+            propertyName: 'name', // Traži po imenu (ali markeri nemaju 'name', pa koristi title iz popup-a)
+            marker: false,
+            moveToLocation: function(latlng, title, map) {
+                map.setView(latlng, 14); // Zoom na lokaciju
+            }
+        });
+        map.addControl(searchControl);
+
+        // Routing control (inicijalno bez waypoints)
+        var routingControl = L.Routing.control({
+            waypoints: [],
+            routeWhileDragging: true,
+            geocoder: L.Control.Geocoder.nominatim(), // Za search adresa ako treba
+            lineOptions: { styles: [{color: 'blue', weight: 4}] },
+            createMarker: function(i, wp, nWps) {
+                return L.marker(wp.latLng, { draggable: true, icon: archaeologyIcon });
+            }
+        }).addTo(map);
+
+        // Funkcija da dobije trenutnu lokaciju korisnika
+        function getUserLocation(callback) {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    var userLatLng = L.latLng(position.coords.latitude, position.coords.longitude);
+                    L.marker(userLatLng).addTo(map).bindPopup('Vaša trenutna lokacija').openPopup();
+                    callback(userLatLng);
+                }, function() {
+                    alert('Ne mogu da dobijem vašu lokaciju. Koristite podrazumevanu.');
+                    callback(L.latLng(44.0, 21.0)); // Fallback na centar Srbije
+                });
+            } else {
+                alert('Geolokacija nije podržana.');
+                callback(L.latLng(44.0, 21.0));
+            }
+        }
+
+        // Inicijalno dobij lokaciju (opciono)
+        // getUserLocation(function() {});
+    </script>
+</body>
+</html>
